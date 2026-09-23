@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dice Isles</title>
+</head>
+<body>
+  <div id="board-wrap"></div>
+
+  <header id="hud-top" class="glass">
+    <h1>Dice Isles</h1>
+    <div id="status" aria-live="polite"></div>
+    <div class="controls" id="setup-controls">
+      <label>Przeciwnicy
+        <select id="opponents">
+          <option>1</option><option>2</option><option selected>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option>
+        </select>
+      </label>
+      <label>Mapa
+        <select id="mapsize">
+          <option value="small">mała</option>
+          <option value="medium" selected>średnia</option>
+          <option value="large">duża</option>
+        </select>
+      </label>
+      <button id="reroll">Losuj ponownie</button>
+      <button id="start" class="primary">Rozpocznij grę</button>
+    </div>
+    <div class="controls" id="game-controls" hidden>
+      <button id="endturn" class="primary" title="Enter / Spacja">Zakończ turę</button>
+    </div>
+    <button id="menu-toggle" class="icon" title="Ustawienia" aria-label="Ustawienia"
+            aria-expanded="false" aria-controls="menu">⚙</button>
+    <div id="menu" class="glass" hidden>
+      <button id="newgame">Nowa gra</button>
+      <label>Tempo AI
+        <select id="speed">
+          <option value="slow">wolno</option>
+          <option value="normal" selected>normalnie</option>
+          <option value="fast">szybko</option>
+          <option value="instant">natychmiast</option>
+        </select>
+      </label>
+      <label>Grafika
+        <select id="quality">
+          <option value="high" selected>3D – wysoka</option>
+          <option value="low">3D – niska</option>
+          <option value="2d">2D</option>
+        </select>
+      </label>
+      <button id="resetview" title="Przywróć widok kamery">Wyśrodkuj widok</button>
+      <label>Dźwięk
+        <select id="sound">
+          <option value="all" selected>efekty i morze</option>
+          <option value="fx">tylko efekty</option>
+          <option value="off">wyłączony</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <div id="hud-bottom">
+    <div id="battle" class="glass"></div>
+    <div id="players" class="glass"></div>
+  </div>
+
+  <div id="overlay" hidden>
+    <div class="modal glass">
+      <h2 id="overlay-title"></h2>
+      <p id="overlay-text"></p>
+      <div id="overlay-buttons"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/game.js"></script>
+</body>
+</html>
