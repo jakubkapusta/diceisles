@@ -187,7 +187,7 @@ export class DiceLayer {
         const t = (now - die.t0) / die.dur;
         if (die.anim === 'drop') {
           if (t < 0) {
-            scale = 0;
+            die.pos.set(target.x, -50, target.z); // waiting below the sea floor, full size (see below)
           } else if (t < 1) {
             die.pos.set(target.x, target.y + (1 - easeOutBounce(t)) * (2.6 + die.index * 0.25), target.z);
           } else {
@@ -212,7 +212,9 @@ export class DiceLayer {
       }
       alive.push(die);
       if (n >= MAX_INSTANCES) continue;
-      s.setScalar(Math.max(scale, 0.0001));
+      // Never scale a die to (almost) zero: on phones' lower-precision GPUs its normals collapse to
+      // zero length, normalizing them gives NaN, and bloom smears that pixel into a white flash.
+      s.setScalar(Math.max(scale, 0.05));
       m.compose(die.pos, die.quat, s);
       this.mesh.setMatrixAt(n, m);
       this.mesh.setColorAt(n, die.color);

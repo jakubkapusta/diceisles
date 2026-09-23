@@ -113,6 +113,15 @@ export class Board3D {
     const composer = new EffectComposer(this.renderer, target);
     composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.22, 0.35, 1.35);
+    // Bloom blurs bright pixels across the screen, so a single NaN/Inf pixel would become a
+    // full-screen white flash. Drop such pixels before they reach the blur.
+    const highPass = this.bloom.materialHighPassFilter;
+    const read = 'vec4 texel = texture2D( tDiffuse, vUv );';
+    if (!highPass.fragmentShader.includes(read)) throw new Error('UnrealBloomPass shader changed');
+    highPass.fragmentShader = highPass.fragmentShader.replace(read, `${read}
+      if ( any( isnan( texel ) ) || any( isinf( texel ) ) ) texel = vec4( 0.0 );
+      texel.rgb = min( texel.rgb, vec3( 16.0 ) );`);
+    highPass.needsUpdate = true;
     composer.addPass(this.bloom);
     composer.addPass(new OutputPass()); // tone mapping + sRGB; the vignette is a CSS overlay
     this.composer = composer;
@@ -141,7 +150,7 @@ export class Board3D {
     this.bloom.enabled = high;
     this.maxPixelRatio = high ? Math.min(window.devicePixelRatio || 1, 2) : 1;
     this.pixelRatio = this.maxPixelRatio;
-    this.perf = { frames: 0, time: 0, goodWindows: 0, cooldownUntil: 0 };
+    this.perf = { frames: 0, time: 0 };
     this.shadowsDirty = true;
     this.resize(true);
   }
@@ -321,9 +330,10 @@ export class Board3D {
     this.bloom.resolution.set(w * ratio, h * ratio);
   }
 
-  // Dynamic resolution: drop the render resolution when frames get slow, raise it back when
-  // there is headroom again. Never goes below 1 render pixel per CSS pixel.
-  adaptResolution(rawDt, now) {
+  // Dynamic resolution: drops the render resolution while frames are slow. It only ever goes
+  // down (never below 1 render pixel per CSS pixel), so it settles after a few steps instead of
+  // resizing the canvas back and forth on devices hovering around the threshold.
+  adaptResolution(rawDt) {
     const perf = this.perf;
     if (!perf || rawDt > 0.25) return; // tab was hidden or the page stalled, don't count it
     perf.frames++;
@@ -331,19 +341,7 @@ export class Board3D {
     if (perf.time < 1.5) return;
     const fps = perf.frames / perf.time;
     perf.frames = perf.time = 0;
-    let next = this.pixelRatio;
-    if (fps < 48 && this.pixelRatio > 1) {
-      next = Math.max(1, this.pixelRatio - 0.25);
-      perf.cooldownUntil = now + 10; // don't climb back right away
-      perf.goodWindows = 0;
-    } else if (fps > 57 && this.pixelRatio < this.maxPixelRatio && now > perf.cooldownUntil) {
-      if (++perf.goodWindows >= 3) {
-        next = Math.min(this.maxPixelRatio, this.pixelRatio + 0.25);
-        perf.goodWindows = 0;
-      }
-    } else {
-      perf.goodWindows = 0;
-    }
+    const next = fps < 48 ? Math.max(1, this.pixelRatio - 0.25) : this.pixelRatio;
     if (next !== this.pixelRatio) {
       this.pixelRatio = next;
       this.applyPixelRatio();
@@ -444,7 +442,7 @@ export class Board3D {
     this.fx.update(now);
     if (moving || this.shadowsDirty) this.renderer.shadowMap.needsUpdate = true;
     this.shadowsDirty = false;
-    this.adaptResolution(rawDt, now);
+    this.adaptResolution(rawDt);
     this.composer.render(dt);
   }
 
