@@ -20,15 +20,15 @@ const pips = (matrix, spots, r) =>
 
 const DIE_DROP = 35; // moves the die down so it stands in the middle of the field
 
-// Island with a raised purple field and a golden die on top, in a 512x512 box.
+// Island with a raised green field (the player's color) and a golden die on top, in a 512x512 box.
 function art() {
   // Isometric die (before DIE_DROP): bottom vertex at (256, 332), half-width 75, side height 85.
   const L = [181, 201.7], T = [256, 158.4], R = [331, 201.7], B = [256, 245];
   return `
     <polygon points="${hex(256, 334, 165)}" fill="#a98a58"/>
     <polygon points="${hex(256, 318, 165)}" fill="#dcc592"/>
-    <polygon points="${hex(256, 318, 148)}" fill="#6e4aa8"/>
-    <polygon points="${hex(256, 300, 148)}" fill="#a57be0"/>
+    <polygon points="${hex(256, 318, 148)}" fill="#2f7d52"/>
+    <polygon points="${hex(256, 300, 148)}" fill="#4fbf7e"/>
     <g transform="translate(0 ${DIE_DROP})">
     <g stroke="#3a2a08" stroke-opacity="0.35" stroke-width="3" stroke-linejoin="round">
       <polygon points="${L} ${B} 256,332 181,288.3" fill="#f2c14e"/>

@@ -1,7 +1,7 @@
 // Offline support. The whole game is a single HTML file plus a few icons, so everything is
 // precached on install. Requests go to the network first, so a new deploy shows up right away,
 // and fall back to the cache when offline (or when the network is too slow to answer).
-const CACHE = 'dice-isles-v1';
+const CACHE = 'dice-isles-v2';
 const PRECACHE = [
   './',
   './index.html',

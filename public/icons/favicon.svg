@@ -8,8 +8,8 @@
   <rect width="512" height="512" rx="112" fill="url(#sea)"/><g transform="translate(256 256) scale(0.9) translate(-256 -326)">
     <polygon points="398.9,416.5 256.0,499.0 113.1,416.5 113.1,251.5 256.0,169.0 398.9,251.5" fill="#a98a58"/>
     <polygon points="398.9,400.5 256.0,483.0 113.1,400.5 113.1,235.5 256.0,153.0 398.9,235.5" fill="#dcc592"/>
-    <polygon points="384.2,392.0 256.0,466.0 127.8,392.0 127.8,244.0 256.0,170.0 384.2,244.0" fill="#6e4aa8"/>
-    <polygon points="384.2,374.0 256.0,448.0 127.8,374.0 127.8,226.0 256.0,152.0 384.2,226.0" fill="#a57be0"/>
+    <polygon points="384.2,392.0 256.0,466.0 127.8,392.0 127.8,244.0 256.0,170.0 384.2,244.0" fill="#2f7d52"/>
+    <polygon points="384.2,374.0 256.0,448.0 127.8,374.0 127.8,226.0 256.0,152.0 384.2,226.0" fill="#4fbf7e"/>
     <g transform="translate(0 35)">
     <g stroke="#3a2a08" stroke-opacity="0.35" stroke-width="3" stroke-linejoin="round">
       <polygon points="181,201.7 256,245 256,332 181,288.3" fill="#f2c14e"/>

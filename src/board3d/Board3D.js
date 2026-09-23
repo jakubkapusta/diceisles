@@ -12,6 +12,7 @@ import { makeGrid, traceLoops, shapeFromLoops, insetLoops, buildBeach } from './
 import { buildShoreMask, createWater } from './water.js';
 import { DiceLayer, DIE } from './dice.js';
 import { Effects } from './fx.js';
+import { BIOME_BY_COLOR, biomeTextures, buildProps, disposeProps } from './biomes.js';
 
 const BASE_BOTTOM = -1.4;
 const BASE_TOP = 0.28; // sand island surface
@@ -38,12 +39,14 @@ const BEACH_RINGS = [
 const SUN_OFFSET = new THREE.Vector3(-9, 16, 7);
 
 const damp = (rate, dt) => 1 - Math.exp(-rate * dt);
+const easeOutBack = t => 1 + 2.7 * (t - 1) ** 3 + 1.7 * (t - 1) ** 2;
 
 export class Board3D {
   constructor(container, { getInsets, onDiceLanded }) {
     this.container = container;
     this.getInsets = getInsets;
     this.quality = 'high';
+    this.fieldStyle = 'biomes'; // 'biomes' (textured mini dioramas) or 'colors' (flat player colors)
 
     const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
     renderer.shadowMap.enabled = true;
@@ -160,12 +163,13 @@ export class Board3D {
   setMap(map, colors) {
     this.fx.clear();
     this.activeArc = null;
+    for (const tile of this.tiles) Object.values(tile.biomeMats).forEach(m => m.dispose());
     for (const child of [...this.board.children]) {
       this.board.remove(child);
       child.traverse(o => {
         o.geometry?.dispose();
         const mats = Array.isArray(o.material) ? o.material : [o.material];
-        mats.forEach(m => m?.dispose());
+        mats.forEach(m => m && !m.userData.shared && m.dispose());
       });
     }
     this.map = map;
@@ -216,11 +220,15 @@ export class Board3D {
       group.add(mesh, outline);
       this.board.add(group);
       const [ax, az] = this.grid.pos(t.center);
-      return {
+      const tile = {
         id: t.id, group, mesh, top, side, outline, outlineMaterial,
         anchor: new THREE.Vector3(ax, 0, az),
+        spots: t.cells.map(c => this.grid.pos(c)),
         color, owner: t.owner, lift: 0, glow: 0, bounceAt: -10,
+        look: null, biomeMats: {}, props: null, propsBornAt: -10,
       };
+      this.applyTileLook(tile, false);
+      return tile;
     });
 
     this.water.setMask(buildShoreMask(map, this.grid));
@@ -235,6 +243,50 @@ export class Board3D {
     this.fitCamera();
   }
 
+  // ---------- field looks (biomes) ----------
+
+  setFieldStyle(style) {
+    this.fieldStyle = style;
+    for (const tile of this.tiles) this.applyTileLook(tile, false);
+    this.shadowsDirty = true;
+  }
+
+  // Switches a field between its flat color and its owner's biome (textured top plus decorations).
+  applyTileLook(tile, animate) {
+    const owner = this.map.territories[tile.id].owner;
+    const biome = this.fieldStyle === 'biomes' ? BIOME_BY_COLOR[this.playerColors[owner]] : undefined;
+    const look = biome || 'flat';
+    if (tile.look === look) return;
+    tile.look = look;
+    tile.mesh.material[0] = biome ? this.biomeMaterial(tile, biome) : tile.top;
+    if (tile.props) {
+      tile.group.remove(tile.props);
+      disposeProps(tile.props);
+      tile.props = null;
+    }
+    if (biome) {
+      tile.props = buildProps(biome, tile.spots, tile.anchor, tile.id * 7919 + owner * 131);
+      tile.props.position.y = TILE_TOP;
+      tile.group.add(tile.props);
+      tile.propsBornAt = animate ? this.timer.getElapsed() : -10;
+    }
+  }
+
+  biomeMaterial(tile, biome) {
+    if (!tile.biomeMats[biome]) {
+      const t = biomeTextures(biome);
+      tile.biomeMats[biome] = new THREE.MeshStandardMaterial({
+        map: t.map,
+        emissiveMap: t.emissiveMap ?? null,
+        emissive: t.emissive ?? '#000000',
+        emissiveIntensity: t.emissiveIntensity ?? 0,
+        roughness: 0.85,
+      });
+      tile.biomeMats[biome].userData.baseEmissive = t.emissiveIntensity ?? 0;
+    }
+    return tile.biomeMats[biome];
+  }
+
   // ---------- state from the game ----------
 
   update(view) {
@@ -246,6 +298,7 @@ export class Board3D {
 
   // Dice use the player color as is; tiles a lighter tint so stacks stand out against their field.
   setColors(colors) {
+    this.playerColors = colors.map(c => c.toLowerCase());
     this.colors = colors.map(c => new THREE.Color(c));
     this.tileColors = this.colors.map(c => c.clone().lerp(new THREE.Color('#ffffff'), 0.12));
   }
@@ -360,8 +413,10 @@ export class Board3D {
 
     const b = this.grid.bounds;
     const points = [];
-    for (const x of [b.minX, b.maxX]) for (const z of [b.minZ, b.maxZ]) for (const y of [0, TILE_TOP + 4 * DIE]) {
-      points.push(new THREE.Vector3(x, y, z));
+    // Tall stacks only stick out of the frame at the far edge; near the camera they rise over the board.
+    for (const x of [b.minX, b.maxX]) {
+      points.push(new THREE.Vector3(x, 0, b.maxZ), new THREE.Vector3(x, TILE_TOP, b.maxZ));
+      points.push(new THREE.Vector3(x, 0, b.minZ), new THREE.Vector3(x, TILE_TOP + 4 * DIE, b.minZ));
     }
     const freeAspect = w / Math.max(1, h - top - bottom);
     const k = THREE.MathUtils.clamp((freeAspect - 0.6) / 0.6, 0, 1);
@@ -456,6 +511,7 @@ export class Board3D {
       if (t.owner !== tile.owner) {
         tile.owner = t.owner;
         tile.bounceAt = now;
+        this.applyTileLook(tile, true);
       }
       tile.color.lerp(this.tileColors[t.owner], damp(7, dt));
       tile.top.color.copy(tile.color);
@@ -479,6 +535,18 @@ export class Board3D {
       if (v.flashes.has(tile.id)) glowGoal = Math.max(glowGoal, 0.22);
       tile.glow += (glowGoal - tile.glow) * damp(10, dt);
       tile.top.emissiveIntensity = tile.glow;
+      if (tile.look !== 'flat') {
+        // Textured tops can't glow in the player color, so highlights brighten the texture instead.
+        const mat = tile.mesh.material[0];
+        mat.color.setScalar(1 + tile.glow * 1.4);
+        const base = mat.userData.baseEmissive;
+        if (base) mat.emissiveIntensity = base * (0.8 + 0.2 * Math.sin(now * 1.7 + tile.id));
+      }
+      if (tile.props) {
+        const k = Math.min(1, (now - tile.propsBornAt) / 0.55);
+        tile.props.scale.y = Math.max(0.01, easeOutBack(k));
+        if (k < 1) moving = true;
+      }
 
       let outline = null;
       // [color, HDR boost (bloom threshold is 1.35), opacity]

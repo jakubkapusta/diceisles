@@ -5,7 +5,9 @@ import { Board3D } from './board3d/Board3D.js';
 import { Board2D } from './board2d/Board2D.js';
 import { Sound } from './audio.js';
 
-const PLAYER_COLORS = ['#a06cd5', '#f2c14e', '#3fb68b', '#e5566f', '#f28f3b', '#4aa3df', '#9acd32', '#e07fc4'];
+// Seat order matters: smaller games only use the first colors, so the best-looking biomes come first.
+// green (you) · yellow · blue · pink · orange · purple · lime · red
+const PLAYER_COLORS = ['#3fb68b', '#f2c14e', '#4aa3df', '#e07fc4', '#f28f3b', '#a06cd5', '#9acd32', '#e5566f'];
 const MAP_SIZES = { small: 24, medium: 32, large: 44 }; // approximate number of territories
 const START_DICE_PER_TERRITORY = 3;
 const MAX_DICE = 8;
@@ -87,8 +89,9 @@ function createRenderer(quality) {
   const options = { getInsets, onDiceLanded: () => sound.land() };
   const board = quality === '2d' ? new Board2D($('board-wrap'), options) : new Board3D($('board-wrap'), options);
   board.setQuality(quality);
+  board.setFieldStyle($('fieldstyle').value);
   sound.setOcean(quality !== '2d');
-  $('resetview').hidden = quality === '2d';
+  $('resetview').hidden = $('fieldstyle-row').hidden = quality === '2d'; // 3D-only options
   return board;
 }
 
@@ -447,6 +450,10 @@ $('quality').addEventListener('change', () => {
   savePrefs();
 });
 $('speed').addEventListener('change', savePrefs);
+$('fieldstyle').addEventListener('change', () => {
+  renderer.setFieldStyle($('fieldstyle').value);
+  savePrefs();
+});
 
 // Browsers start audio only after a user gesture.
 for (const type of ['pointerdown', 'keydown']) document.addEventListener(type, () => sound.unlock(), true);
@@ -465,7 +472,7 @@ function applySound() {
 function savePrefs() {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
-      speed: $('speed').value, quality: $('quality').value, sound: $('sound').value,
+      speed: $('speed').value, quality: $('quality').value, sound: $('sound').value, fields: $('fieldstyle').value,
     }));
   } catch { /* storage unavailable — preferences just won't persist */ }
 }
@@ -480,6 +487,7 @@ function loadPrefs() {
     if (AI_SPEEDS[prefs.speed]) $('speed').value = prefs.speed;
     if (['high', 'low', '2d'].includes(prefs.quality)) $('quality').value = prefs.quality;
     if (['all', 'fx', 'off'].includes(prefs.sound)) $('sound').value = prefs.sound;
+    if (['biomes', 'colors'].includes(prefs.fields)) $('fieldstyle').value = prefs.fields;
     else if (typeof prefs.sound === 'boolean') $('sound').value = prefs.sound ? 'all' : 'off'; // older saves
   } catch { /* ignore broken or missing preferences */ }
   applySound();

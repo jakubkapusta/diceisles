@@ -35,6 +35,7 @@ export class Board2D {
 
   // Nothing to tune in 2D; kept for interface parity with Board3D.
   setQuality() {}
+  setFieldStyle() {}
   battleStart() {}
   battleResult() {}
 

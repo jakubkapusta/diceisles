@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
-export const DIE = 0.66;
+export const DIE = 0.9;
 const MAX_INSTANCES = 1500;
 const FACE_VALUES = [1, 6, 2, 5, 3, 4]; // BoxGeometry face order: +x, -x, +y, -y, +z, -z
 const PIPS = {
