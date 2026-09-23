@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="sea" cx="50%" cy="45%" r="70%">
+      <stop offset="0" stop-color="#2a6fa8"/>
+      <stop offset="1" stop-color="#0b2644"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sea)"/><g transform="translate(256 256) scale(0.9) translate(-256 -326)">
+    <polygon points="398.9,416.5 256.0,499.0 113.1,416.5 113.1,251.5 256.0,169.0 398.9,251.5" fill="#a98a58"/>
+    <polygon points="398.9,400.5 256.0,483.0 113.1,400.5 113.1,235.5 256.0,153.0 398.9,235.5" fill="#dcc592"/>
+    <polygon points="384.2,392.0 256.0,466.0 127.8,392.0 127.8,244.0 256.0,170.0 384.2,244.0" fill="#6e4aa8"/>
+    <polygon points="384.2,374.0 256.0,448.0 127.8,374.0 127.8,226.0 256.0,152.0 384.2,226.0" fill="#a57be0"/>
+    <g transform="translate(0 35)">
+    <g stroke="#3a2a08" stroke-opacity="0.35" stroke-width="3" stroke-linejoin="round">
+      <polygon points="181,201.7 256,245 256,332 181,288.3" fill="#f2c14e"/>
+      <polygon points="256,245 331,201.7 331,288.3 256,332" fill="#c9962a"/>
+      <polygon points="181,201.7 256,158.4 331,201.7 256,245" fill="#ffdd7a"/>
+    </g>
+    <g fill="#2a1d0a">
+      <g transform="matrix(75,-43.3,75,43.3,181,201.7)"><circle cx="0.5" cy="0.5" r="0.13"/></g>
+      <g transform="matrix(75,43.3,0,85,181,201.7)"><circle cx="0.28" cy="0.28" r="0.1"/><circle cx="0.72" cy="0.72" r="0.1"/></g>
+      <g transform="matrix(75,-43.3,0,85,256,245)"><circle cx="0.25" cy="0.25" r="0.1"/><circle cx="0.5" cy="0.5" r="0.1"/><circle cx="0.75" cy="0.75" r="0.1"/></g>
+    </g>
+    </g></g>
+</svg>

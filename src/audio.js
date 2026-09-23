@@ -212,6 +212,28 @@ export class Sound {
     this.tone(t + 0.12, 987.77, 0.8, { gain: 0.09 });
   }
 
+  // Two short woofs: a sawtooth dropping in pitch through a formant-like bandpass, plus breath noise.
+  bark() {
+    if (!this.ready) return;
+    const t0 = this.ctx.currentTime;
+    for (const delay of [0, 0.28]) {
+      const t = t0 + delay;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(540, t);
+      osc.frequency.exponentialRampToValueAtTime(250, t + 0.13);
+      const formant = this.ctx.createBiquadFilter();
+      formant.type = 'bandpass';
+      formant.frequency.value = 950;
+      formant.Q.value = 1.3;
+      const env = this.envelope(t, 0.008, 0.25, 0.14);
+      osc.connect(formant).connect(env).connect(this.master);
+      osc.start(t);
+      osc.stop(t + 0.2);
+      this.click(t, 1600, 0.12, 0.07);
+    }
+  }
+
   victory() {
     if (!this.ready) return;
     const t = this.ctx.currentTime;

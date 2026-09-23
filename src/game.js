@@ -485,6 +485,78 @@ function loadPrefs() {
   applySound();
 }
 
+// ---------- easter egg ----------
+
+// Three quick clicks on the title bring out the author's dog for a moment.
+let titleClicks = [];
+$('title').addEventListener('click', () => {
+  const now = performance.now();
+  titleClicks = [...titleClicks.filter(t => now - t < 800), now];
+  if (titleClicks.length >= 3) {
+    titleClicks = [];
+    showDog();
+  }
+});
+
+function showDog() {
+  if ($('dog')) return;
+  const dog = new Image();
+  dog.id = 'dog';
+  dog.alt = '';
+  dog.src = './easter/dog.webp';
+  dog.decode().then(() => {
+    dog.addEventListener('animationend', e => { if (e.target === dog) dog.remove(); });
+    document.body.append(dog);
+    setTimeout(() => sound.bark(), 550);
+    setTimeout(() => floatHearts(dog), 750);
+  }).catch(() => {}); // image unavailable (e.g. offline before it was ever cached): just skip it
+}
+
+function floatHearts(dog) {
+  const r = dog.getBoundingClientRect();
+  for (let i = 0; i < 7; i++) {
+    setTimeout(() => {
+      const heart = document.createElement('span');
+      heart.className = 'dog-heart';
+      heart.textContent = '❤️';
+      heart.style.left = `${r.left + r.width * (0.62 + Math.random() * 0.22)}px`;
+      heart.style.top = `${r.top + r.height * 0.04}px`;
+      heart.style.setProperty('--dx', `${(Math.random() - 0.5) * 90}px`);
+      heart.style.setProperty('--rot', `${(Math.random() - 0.5) * 50}deg`);
+      heart.addEventListener('animationend', () => heart.remove());
+      document.body.append(heart);
+    }, i * 230);
+  }
+}
+
+// ---------- installable app ----------
+
+// The service worker makes the game work offline. Skipped in dev (it would cache stale modules)
+// and when the build is opened straight from disk, where service workers aren't available.
+if (import.meta.env.PROD && 'serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+
+// Browsers that support installing (Chrome, Edge, Android) announce it; offer it in the menu.
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  installPrompt = e;
+  $('install').hidden = false;
+});
+window.addEventListener('appinstalled', () => {
+  installPrompt = null;
+  $('install').hidden = true;
+});
+$('install').addEventListener('click', async () => {
+  setMenuOpen(false);
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt = null;
+  $('install').hidden = true;
+});
+
 // Only the canvas size matters here; HUD panels changing height (e.g. a longer status line)
 // must not resize the canvas or move the camera.
 new ResizeObserver(() => renderer.resize()).observe($('board-wrap'));

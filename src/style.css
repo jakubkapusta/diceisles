@@ -57,6 +57,8 @@ body {
 
 h1 {
   margin: 0;
+  user-select: none; /* triple-clicking it is the easter egg, not a text selection */
+  -webkit-user-select: none;
   font-size: 18px;
   font-weight: 800;
   letter-spacing: 0.5px;
@@ -233,6 +235,53 @@ button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #ffe39
 @keyframes pop {
   from { transform: scale(0.92); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+
+/* ---------- easter egg ---------- */
+#dog {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: 0;
+  width: min(70vw, 460px);
+  pointer-events: none;
+  transform: translate(-50%, 105%);
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 -4px 24px rgba(0, 0, 0, 0.35));
+  animation: dog-visit 4.6s cubic-bezier(0.3, 0.7, 0.3, 1) forwards;
+}
+@keyframes dog-visit {
+  0% { transform: translate(-50%, 105%); }
+  14% { transform: translate(-50%, 5%) rotate(-2deg); }
+  20% { transform: translate(-50%, 9%) rotate(1deg); }
+  30% { transform: translate(-50%, 7%) rotate(-3deg); }
+  40% { transform: translate(-50%, 7%) rotate(3deg); }
+  50% { transform: translate(-50%, 7%) rotate(-3deg); }
+  60% { transform: translate(-50%, 7%) rotate(2deg); }
+  70% { transform: translate(-50%, 7%) rotate(0); }
+  78% { transform: translate(-50%, -10%) scale(1.04); }
+  84% { transform: translate(-50%, 5%) scale(1.02, 0.97); }
+  100% { transform: translate(-50%, 105%); }
+}
+.dog-heart {
+  position: fixed;
+  z-index: 21;
+  font-size: 28px;
+  pointer-events: none;
+  animation: heart-float 1.8s ease-out forwards;
+}
+@keyframes heart-float {
+  0% { transform: translate(-50%, 0) scale(0.4); opacity: 0; }
+  15% { transform: translate(-50%, -20px) scale(1); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), -170px) rotate(var(--rot)) scale(0.9); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #dog { animation: dog-fade 3s ease forwards; transform: translate(-50%, 5%); }
+  .dog-heart { display: none; }
+}
+@keyframes dog-fade {
+  0%, 100% { opacity: 0; }
+  15%, 80% { opacity: 1; }
 }
 
 /* ---------- phones ---------- */
