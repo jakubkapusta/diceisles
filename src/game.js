@@ -1,6 +1,8 @@
 import './style.css';
-import { rndInt, pickRandom, shuffle, generateMap, largestGroup } from './map.js';
+import { rndInt, shuffle, largestGroup } from './map.js';
 import { aiChooseMove } from './ai.js';
+import { MAX_STOCK, addDice, findPosition } from './sim.js';
+import DealWorker from './sim.worker.js?worker&inline';
 import { Board3D } from './board3d/Board3D.js';
 import { Board2D } from './board2d/Board2D.js';
 import { Sound } from './audio.js';
@@ -9,9 +11,6 @@ import { Sound } from './audio.js';
 // green (you) · yellow · blue · pink · orange · purple · lime · red
 const PLAYER_COLORS = ['#3fb68b', '#f2c14e', '#4aa3df', '#e07fc4', '#f28f3b', '#a06cd5', '#9acd32', '#e5566f'];
 const MAP_SIZES = { small: 24, medium: 32, large: 44 }; // approximate number of territories
-const START_DICE_PER_TERRITORY = 3;
-const MAX_DICE = 8;
-const MAX_STOCK = 64;
 const AI_SPEEDS = {
   slow: { think: 650, roll: 800, after: 450, reinforce: 800 },
   normal: { think: 320, roll: 480, after: 220, reinforce: 450 },
@@ -54,6 +53,7 @@ function pickAiNames(n) {
 
 const state = {
   phase: 'setup', // setup | play | over
+  dealing: false, // a new start position is being searched for
   map: null,
   players: [],
   order: [],
@@ -122,13 +122,44 @@ function boardAspect() {
   return $('quality').value === '2d' ? aspect : aspect * 0.7;
 }
 
-function setupNewGame() {
-  state.token++;
+// Searches for a fair start in a worker (see sim.js). A newer request cancels the older one,
+// whose promise then never settles — its caller is stale anyway.
+let dealer = null;
+function dealPosition(count, perPlayer, aspect) {
+  dealer?.terminate();
+  dealer = null;
+  const onMainThread = () => findPosition(count, perPlayer, aspect);
+  return new Promise(resolve => {
+    try {
+      dealer = new DealWorker();
+    } catch {
+      return resolve(onMainThread());
+    }
+    const worker = dealer;
+    const done = result => {
+      worker.terminate();
+      if (dealer === worker) dealer = null;
+      resolve(result);
+    };
+    worker.onmessage = e => done(e.data);
+    worker.onerror = () => done(onMainThread());
+    worker.postMessage({ count, perPlayer, aspect });
+  });
+}
+
+const percent = x => `${Math.round(x * 100)}%`;
+
+async function setupNewGame() {
+  const token = ++state.token;
   hideOverlay();
   const count = +$('opponents').value + 1;
   const perPlayer = Math.max(3, Math.round(MAP_SIZES[$('mapsize').value] / count));
-  const map = generateMap(perPlayer * count, boardAspect());
+  Object.assign(state, { phase: 'setup', dealing: true, message: 'Losuję planszę i sprawdzam, czy da się na niej wygrać…' });
+  updateUI();
 
+  const pos = await dealPosition(count, perPlayer, boardAspect());
+  if (token !== state.token) return;
+  const { map } = pos;
   const aiNames = pickAiNames(count - 1);
   state.players = Array.from({ length: count }, (_, i) => ({
     id: i,
@@ -137,30 +168,15 @@ function setupNewGame() {
     human: i === 0,
     alive: true,
     stock: 0,
-    aggression: 0.5 + Math.random() * 0.1,
+    aggression: pos.players[i].aggression,
   }));
 
-  // Equal number of territories and equal number of dice for everyone.
-  shuffle(map.territories.map(t => t.id)).forEach((tid, i) => {
-    map.territories[tid].owner = i % count;
-    map.territories[tid].dice = 1;
-  });
-  for (const p of state.players) {
-    const own = map.territories.filter(t => t.owner === p.id);
-    let extra = perPlayer * (START_DICE_PER_TERRITORY - 1);
-    while (extra > 0) {
-      const open = own.filter(t => t.dice < MAX_DICE);
-      if (!open.length) break;
-      pickRandom(open).dice++;
-      extra--;
-    }
-  }
-
   Object.assign(state, {
-    phase: 'setup', map, order: shuffle(state.players.map(p => p.id)), turn: 0,
+    phase: 'setup', dealing: false, map, order: pos.order, turn: 0,
     selected: -1, hover: -1, busy: false, battle: null, flashes: new Map(), endTurn: null, watching: false,
     skipped: { attacks: 0, lost: 0 },
-    message: 'Podgląd planszy. Wylosuj ponownie, jeśli układ Ci nie pasuje.',
+    message: `Podgląd planszy · w symulacji ta pozycja wygrywa ${percent(pos.winRate)} partii`
+      + ` (przeciętnie ${percent(1 / count)}). Możesz wylosować ponownie.`,
   });
   renderer.setMap(map, state.players.map(p => p.color));
   $('battle').innerHTML = '<span class="hint">Tu pojawią się wyniki rzutów</span>';
@@ -170,6 +186,7 @@ function setupNewGame() {
 }
 
 function startGame() {
+  if (state.dealing) return;
   state.phase = 'play';
   state.token++;
   updateUI();
@@ -291,18 +308,9 @@ function resolveBattle(from, to, a, d) {
 
 async function reinforce(p, token) {
   const income = largestGroup(state.map, p.id);
-  let pool = income + p.stock;
-  const own = territoriesOf(p.id);
   const added = new Map();
-  while (pool > 0) {
-    const open = own.filter(t => t.dice < MAX_DICE);
-    if (!open.length) break;
-    const t = pickRandom(open);
-    t.dice++;
-    added.set(t.id, (added.get(t.id) || 0) + 1);
-    pool--;
-  }
-  p.stock = Math.min(pool, MAX_STOCK);
+  const left = addDice(territoriesOf(p.id), income + p.stock, t => added.set(t.id, (added.get(t.id) || 0) + 1));
+  p.stock = Math.min(left, MAX_STOCK);
   if (!p.human && aiTiming().instant) return;
   state.flashes = added;
   sound.reinforce(income, p.human ? 1 : 0.5);
@@ -574,6 +582,7 @@ new ResizeObserver(() => renderer.resize()).observe($('board-wrap'));
 // ---------- UI ----------
 
 function draw() {
+  if (!state.map) return; // the first start is still being dealt
   const human = isHumanTurn();
   renderer.update({
     players: state.players,
@@ -596,6 +605,8 @@ function updateUI() {
   let message = state.message;
   if (isHumanTurn() && state.selected >= 0) message = 'Wybierz cel ataku (podświetlone pola) albo kliknij swoje pole ponownie, by anulować.';
   $('status').textContent = message;
+  $('start').disabled = $('reroll').disabled = state.dealing;
+  if (!state.map) return;
 
   const T = state.map.territories;
   $('players').innerHTML = state.order.map((pid, i) => {

@@ -5,6 +5,7 @@ Conquer the island by attacking neighbouring fields with your dice; AI opponents
 
 - 3D board (three.js) with an animated sea, or a flat 2D mode
 - 1–7 AI opponents, three map sizes, random maps you can re-roll before starting
+- Every deal is checked with ~100 simulated AI-vs-AI games, so your starting position wins at least its fair share
 - Procedural sound effects, works on phones
 
 ## Development
