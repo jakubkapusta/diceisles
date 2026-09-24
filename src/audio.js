@@ -14,6 +14,9 @@ export class Sound {
   }
 
   // Browsers only allow audio after a user gesture, so this is called from input handlers.
+  // Safari (and every iOS browser, which all run on WebKit) only counts touchend/pointerup/click
+  // as such a gesture, parks the context in 'interrupted' after the app was in the background,
+  // and wants a sound actually started inside the gesture before it fully unlocks.
   unlock() {
     if (!this.ctx) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -27,7 +30,13 @@ export class Sound {
       this.noiseBuffer = this.makeNoise();
       this.startOcean();
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state !== 'running') {
+      this.ctx.resume().catch(() => {});
+      const silence = this.ctx.createBufferSource();
+      silence.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+      silence.connect(this.ctx.destination);
+      silence.start();
+    }
   }
 
   setEnabled(on) {

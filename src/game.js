@@ -455,8 +455,10 @@ $('fieldstyle').addEventListener('change', () => {
   savePrefs();
 });
 
-// Browsers start audio only after a user gesture.
-for (const type of ['pointerdown', 'keydown']) document.addEventListener(type, () => sound.unlock(), true);
+// Browsers start audio only after a user gesture; iOS/Safari only accepts the "release" events.
+for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) {
+  document.addEventListener(type, () => sound.unlock(), true);
+}
 $('sound').addEventListener('change', () => {
   applySound();
   savePrefs();
