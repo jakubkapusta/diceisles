@@ -10,7 +10,13 @@
   --accent-hover: #ffd873;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  /* Mobile browsers flash a translucent box over any tapped element with a click handler; the
+     board container covers the whole screen, so every tap flashed the screen. Buttons have
+     their own :active feedback. */
+  -webkit-tap-highlight-color: transparent;
+}
 [hidden] { display: none !important; }
 
 html, body { height: 100%; margin: 0; }
@@ -22,7 +28,13 @@ body {
   font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-#board-wrap { position: fixed; inset: 0; }
+#board-wrap {
+  position: fixed;
+  inset: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* no iOS long-press menu on the board */
+}
 /* Vignette as a CSS overlay instead of a full-screen shader pass. */
 #board-wrap::after {
   content: '';
