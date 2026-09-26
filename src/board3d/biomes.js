@@ -36,13 +36,15 @@ function rng(seed) {
 function periodicNoise(period, seed) {
   const r = rng(seed);
   const grid = Float32Array.from({ length: period * period }, r);
-  const at = (x, y) => grid[((y % period) + period) % period * period + ((x % period) + period) % period];
+  const wrap = i => ((i % period) + period) % period;
   return (u, v) => { // u, v in [0, 1)
     const x = u * period, y = v * period;
     const ix = Math.floor(x), iy = Math.floor(y);
     const fx = x - ix, fy = y - iy;
     const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
-    const a = at(ix, iy), b = at(ix + 1, iy), c = at(ix, iy + 1), d = at(ix + 1, iy + 1);
+    const x0 = wrap(ix), x1 = x0 + 1 === period ? 0 : x0 + 1;
+    const y0 = wrap(iy) * period, y1 = (y0 + period) % (period * period);
+    const a = grid[y0 + x0], b = grid[y0 + x1], c = grid[y1 + x0], d = grid[y1 + x1];
     return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
   };
 }
@@ -57,19 +59,30 @@ function fbm(seed, basePeriod, octaves = 4) {
 }
 
 // Tileable Voronoi: `edge` is ~0 on the border between two plates, `id` identifies the plate.
+// One point per grid cell, so the two nearest points always lie within the surrounding 5x5 cells
+// (needs cells >= 5, otherwise the window would visit a point twice).
 function voronoi(cells, seed) {
   const r = rng(seed);
-  const pts = [];
-  for (let gy = 0; gy < cells; gy++) for (let gx = 0; gx < cells; gx++) {
-    pts.push([(gx + r()) / cells, (gy + r()) / cells, r()]);
+  const px = new Float64Array(cells * cells), py = new Float64Array(cells * cells), ids = new Float64Array(cells * cells);
+  for (let k = 0; k < cells * cells; k++) {
+    const gx = k % cells, gy = (k / cells) | 0;
+    px[k] = (gx + r()) / cells;
+    py[k] = (gy + r()) / cells;
+    ids[k] = r();
   }
+  const wrap = i => (i + cells) % cells;
   return (u, v) => {
+    const cx = Math.floor(u * cells), cy = Math.floor(v * cells);
     let d1 = Infinity, d2 = Infinity, id = 0;
-    for (const [px, py, pid] of pts) {
-      let dx = Math.abs(u - px), dy = Math.abs(v - py);
-      dx = Math.min(dx, 1 - dx); dy = Math.min(dy, 1 - dy); // wrap around → tileable
-      const d = Math.hypot(dx, dy);
-      if (d < d1) { d2 = d1; d1 = d; id = pid; } else if (d < d2) d2 = d;
+    for (let oy = -2; oy <= 2; oy++) {
+      const row = wrap(cy + oy) * cells;
+      for (let ox = -2; ox <= 2; ox++) {
+        const k = row + wrap(cx + ox);
+        let dx = Math.abs(u - px[k]), dy = Math.abs(v - py[k]);
+        dx = Math.min(dx, 1 - dx); dy = Math.min(dy, 1 - dy); // wrap around → tileable
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < d1) { d2 = d1; d1 = d; id = ids[k]; } else if (d < d2) d2 = d;
+      }
     }
     return { edge: (d2 - d1) * cells, id };
   };
@@ -78,7 +91,7 @@ function voronoi(cells, seed) {
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = t => Math.min(1, Math.max(0, t));
 const hexRgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
-const mixRgb = (a, b, t) => a.map((v, i) => lerp(v, b[i], t));
+const mixRgb = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 
 // Paints a texture pixel by pixel; paint(u, v) returns [r, g, b].
 function paintTexture(paint) {

@@ -12,7 +12,8 @@ export function buildShoreMask(map, grid) {
   };
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = MASK_SIZE;
-  const ctx = canvas.getContext('2d');
+  // Read back right away: a CPU canvas avoids a slow GPU readback (a noticeable hitch on phones).
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, MASK_SIZE, MASK_SIZE);
   ctx.fillStyle = '#fff';

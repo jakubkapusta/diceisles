@@ -241,9 +241,43 @@ export class Board3D {
     this.dice.reset();
     this.dice.sync(map.territories, this.colors, this.timer.getElapsed(), 0.9);
     this.fitCamera();
+    this.revealWhenCompiled();
+  }
+
+  // The first board needs a batch of new shaders, and compiling them inside a frame freezes phones
+  // for a second or more. Where the browser can compile in the background, the board stays hidden
+  // (the sea keeps moving) until they are ready.
+  revealWhenCompiled() {
+    const version = this.mapVersion = (this.mapVersion || 0) + 1;
+    const show = visible => {
+      if (version !== this.mapVersion) return;
+      this.board.visible = this.dice.mesh.visible = visible;
+      this.shadowsDirty = true;
+    };
+    show(false);
+    try {
+      this.renderer.compileAsync(this.scene, this.camera).then(() => show(true), () => show(true));
+    } catch {
+      show(true);
+    }
   }
 
   // ---------- field looks (biomes) ----------
+
+  // Builds (and uploads) the biome textures for these player colors one at a time, while the game
+  // is still dealing the map, so setMap doesn't have to make them all in one long frame.
+  prewarm(colors) {
+    if (this.fieldStyle !== 'biomes') return;
+    const biomes = colors.map(c => BIOME_BY_COLOR[c.toLowerCase()]).filter(Boolean);
+    const next = () => {
+      const biome = biomes.shift();
+      if (!biome) return;
+      const t = biomeTextures(biome);
+      for (const texture of [t.map, t.emissiveMap]) if (texture) this.renderer.initTexture(texture);
+      setTimeout(next, 16);
+    };
+    setTimeout(next, 0);
+  }
 
   setFieldStyle(style) {
     this.fieldStyle = style;

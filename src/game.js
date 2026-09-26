@@ -157,6 +157,7 @@ async function setupNewGame() {
   Object.assign(state, { phase: 'setup', dealing: true, message: 'Losuję planszę i sprawdzam, czy da się na niej wygrać…' });
   updateUI();
 
+  renderer.prewarm(PLAYER_COLORS.slice(0, count)); // uses the time the worker needs
   const pos = await dealPosition(count, perPlayer, boardAspect());
   if (token !== state.token) return;
   const { map } = pos;
